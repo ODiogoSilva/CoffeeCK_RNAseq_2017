@@ -106,12 +106,12 @@ def parse_target_gff(gff_file):
 
 def test_overlap(rg1, rg2):
 
-    x = range(rg1[0], rg1[1])
-    y = range(rg2[0], rg2[1])
+    # x = range(rg1[0], rg1[1])
+    # y = range(rg2[0], rg2[1])
 
-    res = set(x).intersection(y)
+    # res = set(x).intersection(y)
 
-    if res:
+    if rg2[0] < rg1[0] < rg2[1] or rg2[0] < rg1[1] < rg2[1]:
         return True
     else:
         return False
