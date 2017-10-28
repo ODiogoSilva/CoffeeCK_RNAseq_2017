@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import re
+import plotly
 import argparse
 
 
@@ -8,6 +9,7 @@ parser = argparse.ArgumentParser(description="Annotation script")
 
 parser.add_argument("-in", dest="infile", help="Input gff file")
 parser.add_argument("-gff", dest="gff_file", help="Reference gff")
+parser.add_argument("-go", dest="go_file", help="GO terms file")
 
 args = parser.parse_args()
 
@@ -137,6 +139,38 @@ def get_annotations(gff_storage, gff_reference):
     return annotations
 
 
+def parse_go_terms(go_file):
+
+    go_storage = {}
+    
+    go_id = None
+    go_cat = []
+
+    with open(go_file) as fh:
+
+        for line in fh:
+
+            if line.startswith("[Term]"):
+
+                if go_id and go_cat:
+                    go_storage[go_id] = go_cat
+
+                go_id = None
+                go_cat = []
+
+            try:
+                if line.startswith("id:"):
+                    go_id = line.strip().split()[1].split(":")[1]
+
+                if line.startswith("is_a:"):
+                    cat = line.strip().split("!")[1]
+                    go_cat.append(cat)
+            except IndexError:
+                pass
+
+    print(list(go_storage.items())[:10])
+
+
 def main():
     """Main execution function
 
@@ -144,12 +178,13 @@ def main():
     
     infile = args.infile
     gff_file = args.gff_file
+    go_file = args.go_file
 
     ref = parse_reference_gff(gff_file)
     target = parse_target_gff(infile)
 
     annotations = get_annotations(target, ref)
-
+    go_terms = parse_go_terms(go_file)
 
 
 main()
