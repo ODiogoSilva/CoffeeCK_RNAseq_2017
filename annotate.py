@@ -106,12 +106,8 @@ def parse_target_gff(gff_file):
 
 def test_overlap(rg1, rg2):
 
-    # x = range(rg1[0], rg1[1])
-    # y = range(rg2[0], rg2[1])
-
-    # res = set(x).intersection(y)
-
-    if rg2[0] < rg1[0] < rg2[1] or rg2[0] < rg1[1] < rg2[1]:
+    if rg2[0] < rg1[0] < rg2[1] or rg2[0] < rg1[1] < rg2[1] or \
+            rg1[0] < rg2[0] < rg1[1] or rg1[0] < rg2[1] < rg1[1]:
         return True
     else:
         return False
@@ -130,9 +126,6 @@ def get_annotations(gff_storage, gff_reference):
             if vals["chr"] != metadata["chr"]:
                 continue
 
-            if vals["range"][1] < metadata["range"][0]:
-                continue
-
             if test_overlap(vals["range"], metadata["range"]):
                 annotations[gene_id] = metadata["go"]
                 break
@@ -141,8 +134,8 @@ def get_annotations(gff_storage, gff_reference):
         if gene_id not in annotations:
             annotations[gene_id] = None
 
-    print(len(annotations))
-                
+    return annotations
+
 
 def main():
     """Main execution function
@@ -155,7 +148,8 @@ def main():
     ref = parse_reference_gff(gff_file)
     target = parse_target_gff(infile)
 
-    get_annotations(target, ref)
+    annotations = get_annotations(target, ref)
+
 
 
 main()
