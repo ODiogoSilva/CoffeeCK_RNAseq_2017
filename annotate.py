@@ -45,6 +45,12 @@ def parse_reference_gff(gff_file):
 
             # Get go terms
             go_terms = re.findall(r"GO:([0-9]*),", fields[-1])
+            
+            # Get interpro if no go terms are found
+            if not go_terms:
+                interpro = re.findall(r"InterPro:(IPR[0-9]*),", fields[-1])
+            else:
+                interpro = None
 
             # Get range of polypeptide
             gene_range = [int(fields[3]), int(fields[4])]
@@ -54,6 +60,7 @@ def parse_reference_gff(gff_file):
 
             annotations[gene_id] = {
                     "go": go_terms,
+                    "interpro": interpro,
                     "range": gene_range,
                     "chr": chrom
                     }
@@ -129,7 +136,10 @@ def get_annotations(gff_storage, gff_reference):
                 continue
 
             if test_overlap(vals["range"], metadata["range"]):
-                annotations[gene_id] = metadata["go"]
+                if metadata["go"]:
+                    annotations[gene_id] = metadata["go"]
+                else:
+                    annotations[gene_id] = metadata["interpro"]
                 break
  
         # If no overlapp was found, populate with  none
@@ -142,7 +152,7 @@ def get_annotations(gff_storage, gff_reference):
 def parse_go_terms(go_file):
 
     go_storage = {}
-    
+
     go_id = None
     go_cat = None
     go_namespace = None
@@ -186,6 +196,12 @@ def parse_go_terms(go_file):
     return go_storage
 
 
+def get_go_hierarchy(annotation_dic, go_terms):
+
+    pass
+
+
+
 def main():
     """Main execution function
 
@@ -200,8 +216,11 @@ def main():
 
     annotations = get_annotations(target, ref)
     print(list(annotations.items())[:10])
+    check = [x for x in annotations.values() if not x]
+    print(len(check))
+
     go_terms = parse_go_terms(go_file)
-    print(list(go_terms.items()[:10]))
+    print(list(go_terms.items())[:10])
 
 
 main()
