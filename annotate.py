@@ -174,6 +174,8 @@ def parse_go_terms(go_file):
     go_id = None
     go_cat = None
     go_namespace = None
+    go_alt_id = []
+    go_cons = None
     go_is_a = {}
 
     with open(go_file) as fh:
@@ -187,22 +189,35 @@ def parse_go_terms(go_file):
                             "cat": go_cat,
                             "namespace": go_namespace,
                             "is_a": go_is_a,
+                            "alt_id": go_alt_id,
+                            "cons": go_cons
                             }
 
                 go_id = None
                 go_cat = None
                 go_namespace = None
+                go_cons = None
+                go_alt_id = []
                 go_is_a = {}
 
             try:
                 if line.startswith("id:"):
                     go_id = line.strip().split()[1].split(":")[1]
 
+                if line.startswith("alt_id:"):
+                    go_alt_id.append(line.strip().split(":")[-1])
+
                 if line.startswith("name:"):
                     go_cat = line.split(":")[1].strip()
 
                 if line.startswith("namespace:"):
                     go_namespace = line.split(":")[1].strip()
+
+                if line.startswith("consider:"):
+                    go_cons = line.strip().split(":")[-1]
+
+                if line.startswith("replaced_by:"):
+                    go_cons = line.strip().split(":")[-1]
 
                 if line.startswith("is_a:"):
                     is_a_temp = line.strip().split(": ")[1]
@@ -214,10 +229,84 @@ def parse_go_terms(go_file):
     return go_storage
 
 
-def get_go_hierarchy(annotation_dic, go_terms):
+def get_go_hiearchy(go, go_terms):
 
-    pass
+    scan = True
+    go_tree = [go_terms[go]["cat"]]
 
+    try:
+        go_id = list(go_terms[go]["is_a"].keys())[0]
+    except IndexError:
+        return None
+
+    while scan:
+
+        if not go_terms[go_id]["is_a"]:
+            scan = False
+            break
+
+        go_tree.append(go_terms[go_id]["cat"])
+        go_id = list(go_terms[go_id]["is_a"].keys())[0]
+
+    go_tree.append(go_terms[go]["namespace"])
+
+    return go_tree
+
+
+def get_alt_go(go, go_terms):
+
+    for k, v in go_terms.items():
+        if go in v["alt_id"]:
+            return k
+
+
+def get_go_annotation(annotation_dic, go_terms, inter_map):
+
+    go_terms_dic = {}
+    bad = 0
+
+    for gene_id, annot in annotation_dic.items():
+
+        print("Scanning gene {}".format(gene_id), end="\r")
+        go_terms_dic[gene_id] = {}
+
+        if not annot:
+            continue
+
+        for i in annot:
+
+            try:
+                if i.startswith("IPR"):
+                    i = inter_map[i]
+            except KeyError:
+                bad += 1
+                continue
+
+            # Check if the GO id is in the mapping. If not, check the
+            # alternative ids
+            if i not in go_terms:
+                i = get_alt_go(i, go_terms)
+
+            # Some GO ids may be absolte. Check for this, and update the id
+            if go_terms[i]["cons"]:
+                i = go_terms[i]["cons"]
+
+            go_tree = get_go_hiearchy(i, go_terms)
+
+            if go_tree:
+                go_terms_dic[gene_id] = {
+                        "go_id": i,
+                        "go_tree": go_tree
+                        }
+
+    return go_terms_dic
+
+
+def missing_annotations(final_annotation):
+
+    missing = len([x for x in annotations.values() if not x]) 
+
+    print(missing)
 
 
 def main():
@@ -233,16 +322,14 @@ def main():
     ref = parse_reference_gff(gff_file)
     target = parse_target_gff(infile)
     inter_map = parse_interpro(inter_file)
-
-    print(list(inter_map.items())[:10])
+    go_terms = parse_go_terms(go_file)
 
     annotations = get_annotations(target, ref)
-    print(list(annotations.items())[:10])
-    check = [x for x in annotations.values() if not x]
-    print(len(check))
 
-    go_terms = parse_go_terms(go_file)
-    print(list(go_terms.items())[:10])
+    final_annotations = get_go_annotation(annotations, go_terms, inter_map)
+    print(list(final_annotations.items())[:10])
+
+    missing_annotations(final_annotations)
 
 
 main()
