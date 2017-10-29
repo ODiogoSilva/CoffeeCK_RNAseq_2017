@@ -10,6 +10,7 @@ parser = argparse.ArgumentParser(description="Annotation script")
 parser.add_argument("-in", dest="infile", help="Input gff file")
 parser.add_argument("-gff", dest="gff_file", help="Reference gff")
 parser.add_argument("-go", dest="go_file", help="GO terms file")
+parser.add_argument("-inter", dest="inter_file", help="Interpro2GO mapping")
 
 args = parser.parse_args()
 
@@ -113,6 +114,23 @@ def parse_target_gff(gff_file):
     return gff_storage
 
 
+def parse_interpro(interpro_file):
+
+    inter_map = {}
+
+    with open(interpro_file) as fh:
+
+        for line in fh:
+            if line.startswith("InterPro:"):
+                inter_id = re.findall(r"InterPro:(IPR[0-9]*) ",
+                                      line.strip())[0]
+                go_term = re.findall(r"GO:([0-9]*)", line.strip())[1]
+
+                inter_map[inter_id] = go_term
+
+    return inter_map
+
+
 def test_overlap(rg1, rg2):
 
     if rg2[0] < rg1[0] < rg2[1] or rg2[0] < rg1[1] < rg2[1] or \
@@ -210,9 +228,13 @@ def main():
     infile = args.infile
     gff_file = args.gff_file
     go_file = args.go_file
+    inter_file = args.inter_file
 
     ref = parse_reference_gff(gff_file)
     target = parse_target_gff(infile)
+    inter_map = parse_interpro(inter_file)
+
+    print(list(inter_map.items())[:10])
 
     annotations = get_annotations(target, ref)
     print(list(annotations.items())[:10])
