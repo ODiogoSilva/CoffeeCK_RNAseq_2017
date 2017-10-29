@@ -1,8 +1,9 @@
 #!/usr/bin/env python
 
 import re
-import plotly
+import matplotlib.pyplot as plt
 import argparse
+import pickle
 
 
 parser = argparse.ArgumentParser(description="Annotation script")
@@ -11,6 +12,8 @@ parser.add_argument("-in", dest="infile", help="Input gff file")
 parser.add_argument("-gff", dest="gff_file", help="Reference gff")
 parser.add_argument("-go", dest="go_file", help="GO terms file")
 parser.add_argument("-inter", dest="inter_file", help="Interpro2GO mapping")
+parser.add_argument("-annot", dest="annotations", help="Pickle with "
+                    "annotations dict")
 
 args = parser.parse_args()
 
@@ -302,11 +305,30 @@ def get_go_annotation(annotation_dic, go_terms, inter_map):
     return go_terms_dic
 
 
+def write_annotations(final_annotation):
+
+    with open("annotations.pck", "wb") as fh:
+        pickle.dump(final_annotation, fh)
+
+
+def load_annotations(path):
+
+    with open(path, "rb") as fh:
+        return pickle.load(fh)
+
+
 def missing_annotations(final_annotation):
 
-    missing = len([x for x in annotations.values() if not x]) 
+    missing = len([x for x in final_annotation.values() if not x])
 
     print(missing)
+
+
+def histogram_go_terms(final_annotation, level=-1):
+
+    data = [x["go_tree"][level] for x in final_annotation.values() if x]
+
+    print(data)
 
 
 def main():
@@ -318,18 +340,24 @@ def main():
     gff_file = args.gff_file
     go_file = args.go_file
     inter_file = args.inter_file
+    annot = args.annotations
 
-    ref = parse_reference_gff(gff_file)
-    target = parse_target_gff(infile)
-    inter_map = parse_interpro(inter_file)
-    go_terms = parse_go_terms(go_file)
+    if not annot:
+        ref = parse_reference_gff(gff_file)
+        target = parse_target_gff(infile)
+        inter_map = parse_interpro(inter_file)
+        go_terms = parse_go_terms(go_file)
 
-    annotations = get_annotations(target, ref)
+        annotations = get_annotations(target, ref)
 
-    final_annotations = get_go_annotation(annotations, go_terms, inter_map)
-    print(list(final_annotations.items())[:10])
+        final_annotations = get_go_annotation(annotations, go_terms, inter_map)
+        print(list(final_annotations.items())[:10])
+        write_annotations(final_annotations)
+    else:
+        final_annotations = load_annotations(annot)
 
     missing_annotations(final_annotations)
+    histogram_go_terms(final_annotations, -2)
 
 
 main()
