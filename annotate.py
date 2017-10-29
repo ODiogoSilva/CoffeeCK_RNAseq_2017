@@ -59,7 +59,7 @@ def parse_reference_gff(gff_file):
                     }
 
     return annotations
-            
+
 
 def parse_target_gff(gff_file):
 
@@ -131,7 +131,7 @@ def get_annotations(gff_storage, gff_reference):
             if test_overlap(vals["range"], metadata["range"]):
                 annotations[gene_id] = metadata["go"]
                 break
-        
+ 
         # If no overlapp was found, populate with  none
         if gene_id not in annotations:
             annotations[gene_id] = None
@@ -144,7 +144,9 @@ def parse_go_terms(go_file):
     go_storage = {}
     
     go_id = None
-    go_cat = []
+    go_cat = None
+    go_namespace = None
+    go_is_a = {}
 
     with open(go_file) as fh:
 
@@ -153,22 +155,35 @@ def parse_go_terms(go_file):
             if line.startswith("[Term]"):
 
                 if go_id and go_cat:
-                    go_storage[go_id] = go_cat
+                    go_storage[go_id] = {
+                            "cat": go_cat,
+                            "namespace": go_namespace,
+                            "is_a": go_is_a,
+                            }
 
                 go_id = None
-                go_cat = []
+                go_cat = None
+                go_namespace = None
+                go_is_a = {}
 
             try:
                 if line.startswith("id:"):
                     go_id = line.strip().split()[1].split(":")[1]
 
+                if line.startswith("name:"):
+                    go_cat = line.split(":")[1].strip()
+
+                if line.startswith("namespace:"):
+                    go_namespace = line.split(":")[1].strip()
+
                 if line.startswith("is_a:"):
-                    cat = line.strip().split("!")[1]
-                    go_cat.append(cat)
+                    is_a_temp = line.strip().split(": ")[1]
+                    is_a = is_a_temp.split("!")
+                    go_is_a[is_a[0].split(":")[1].strip()] = is_a[1].strip()
             except IndexError:
                 pass
 
-    print(list(go_storage.items())[:10])
+    return go_storage
 
 
 def main():
@@ -184,7 +199,9 @@ def main():
     target = parse_target_gff(infile)
 
     annotations = get_annotations(target, ref)
+    print(list(annotations.items())[:10])
     go_terms = parse_go_terms(go_file)
+    print(list(go_terms.items()[:10]))
 
 
 main()
