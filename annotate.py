@@ -288,6 +288,9 @@ def get_go_annotation(annotation_dic, go_terms, inter_map):
         go_terms_dic[gene_id] = []
 
         if not annot:
+            go_terms_dic[gene_id].append({
+                "chr": dic["chr"],
+            })
             continue
 
         for i in annot:
@@ -316,6 +319,7 @@ def get_go_annotation(annotation_dic, go_terms, inter_map):
                         "chr": dic["chr"],
                         "range": dic["range"],
                         "go_id": i,
+                        "go_cat": go_terms[i]["cat"],
                         "go_tree": go_tree
                         })
 
