@@ -11,7 +11,8 @@ parser = argparse.ArgumentParser(description="Annotation script")
 parser.add_argument("-in", dest="infile", help="Input gff file")
 parser.add_argument("-gff", dest="gff_file", help="Reference gff")
 parser.add_argument("-go", dest="go_file", help="GO terms file")
-parser.add_argument("-inter", dest="inter_file", help="Interpro2GO mapping")
+parser.add_argument("-inter", dest="inter_file",
+                    help="Interpro2GO mapping")
 parser.add_argument("-annot", dest="annotations", help="Pickle with "
                     "annotations dict")
 
@@ -56,6 +57,9 @@ def parse_reference_gff(gff_file):
             else:
                 interpro = None
 
+            # Get product
+            product = re.findall(r"PRODUCT:(.*),CC_f", fields[-1])[0]
+
             # Get range of polypeptide
             gene_range = [int(fields[3]), int(fields[4])]
 
@@ -65,6 +69,7 @@ def parse_reference_gff(gff_file):
             annotations[gene_id] = {
                     "go": go_terms,
                     "interpro": interpro,
+                    "product": product,
                     "range": gene_range,
                     "chr": chrom
                     }
@@ -150,6 +155,7 @@ def get_annotations(gff_storage, gff_reference):
     for gene_id, vals in gff_storage.items():
 
         print("Scanning gene {}".format(gene_id), end="\r")
+        annotations[gene_id] = {}
 
         for ref_id, metadata in gff_reference.items():
 
@@ -157,15 +163,21 @@ def get_annotations(gff_storage, gff_reference):
                 continue
 
             if test_overlap(vals["range"], metadata["range"]):
+
+                annotations[gene_id]["product"] = metadata["product"]
+                annotations[gene_id]["chr"] = metadata["chr"]
+                annotations[gene_id]["range"] = vals["range"]
                 if metadata["go"]:
-                    annotations[gene_id] = metadata["go"]
+                    annotations[gene_id]["annot"] = metadata["go"]
                 else:
-                    annotations[gene_id] = metadata["interpro"]
+                    annotations[gene_id]["annot"] = metadata["interpro"]
                 break
  
-        # If no overlapp was found, populate with  none
-        if gene_id not in annotations:
-            annotations[gene_id] = None
+        # If no overlap was found, populate with  none
+        if not annotations[gene_id]:
+            annotations[gene_id] = {"annot": None,
+                                    "chr": metadata["chr"],
+                                    "product": metadata["product"]}
 
     return annotations
 
@@ -268,10 +280,12 @@ def get_go_annotation(annotation_dic, go_terms, inter_map):
     go_terms_dic = {}
     bad = 0
 
-    for gene_id, annot in annotation_dic.items():
+    for gene_id, dic in annotation_dic.items():
+
+        annot = dic["annot"]
 
         print("Scanning gene {}".format(gene_id), end="\r")
-        go_terms_dic[gene_id] = {}
+        go_terms_dic[gene_id] = []
 
         if not annot:
             continue
@@ -297,10 +311,13 @@ def get_go_annotation(annotation_dic, go_terms, inter_map):
             go_tree = get_go_hiearchy(i, go_terms)
 
             if go_tree:
-                go_terms_dic[gene_id] = {
+                go_terms_dic[gene_id].append({
+                        "product": dic["product"],
+                        "chr": dic["chr"],
+                        "range": dic["range"],
                         "go_id": i,
                         "go_tree": go_tree
-                        }
+                        })
 
     return go_terms_dic
 
@@ -321,14 +338,10 @@ def missing_annotations(final_annotation):
 
     missing = len([x for x in final_annotation.values() if not x])
 
-    print(missing)
-
 
 def histogram_go_terms(final_annotation, level=-1):
 
     data = [x["go_tree"][level] for x in final_annotation.values() if x]
-
-    print(data)
 
 
 def main():
@@ -356,8 +369,8 @@ def main():
     else:
         final_annotations = load_annotations(annot)
 
-    missing_annotations(final_annotations)
-    histogram_go_terms(final_annotations, -2)
+    # missing_annotations(final_annotations)
+    # histogram_go_terms(final_annotations, -2)
 
 
 main()
