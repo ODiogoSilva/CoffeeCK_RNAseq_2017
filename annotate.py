@@ -19,6 +19,30 @@ parser.add_argument("-annot", dest="annotations", help="Pickle with "
 args = parser.parse_args()
 
 
+def parse_fasta(fasta_file):
+
+    fasta_storage = {}
+
+    with open(fasta_file) as fh:
+
+        sequence = []
+        header = None
+
+        for line in fh:
+
+            if line.startswith(">"):
+
+                if sequence:
+                    fasta_storage[header] = "".join(sequence)
+
+                header = line.strip()[1:].split()[0]
+
+            else:
+                sequence.append(line.strip())
+
+    return fasta_storage
+
+
 def parse_reference_gff(gff_file):
     """Parses a reference gff file and returns a dictionary with the
     annotations
@@ -300,6 +324,9 @@ def get_go_annotation(annotation_dic, go_terms, inter_map):
                     i = inter_map[i]
             except KeyError:
                 bad += 1
+                go_terms_dic[gene_id].append({
+                    "chr": dic["chr"],
+                })
                 continue
 
             # Check if the GO id is in the mapping. If not, check the
